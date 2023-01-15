@@ -36,11 +36,31 @@
       hostname:
         name: "{{ hostname }}"
 
+    - name: Get software for apt repository management
+      apt:
+        state: present
+        name:
+          - python3-apt
+          - python3-pycurl
+
+    - name: Add rspamd apt repository key
+      get_url:
+        url: https://rspamd.com/apt-stable/gpg.key
+        dest: /etc/apt/trusted.gpg.d/rspamd.asc
+        mode: '0644'
+        force: true
+
+    - name: Add rspamd apt repository
+      apt_repository:
+        repo: "deb [arch=amd64 signed-by=/etc/apt/trusted.gpg.d/rspamd.asc] http://rspamd.com/apt-stable/ {{ ansible_distribution_release }} main"
+        state: present
+
     - name: Install required packages
       apt:
         name:
           - postfix
           - dovecot-imapd
+          - rspamd
         state: present
 
     - name: Set hostname
