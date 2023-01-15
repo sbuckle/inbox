@@ -1,0 +1,105 @@
+---
+- hosts: all
+  become: yes
+
+  vars:
+    hostname: ""
+    domain: "{{ hostname }}"
+    admin_email: ""
+    firewall_allowed_tcp_ports:
+      - 22
+      - 25
+      # Certbot standalone method
+      - 80
+      # Submission port
+      - 587
+      # IMAP over TLS
+      - 993
+    certbot_create_if_missing: true
+    certbot_create_method: standalone
+    certbot_auto_renew: true
+    certbot_admin_email: "{{ admin_email }}"
+    certbot_certs:
+      - domains:
+          - "{{ hostname }}"
+
+  pre_tasks:
+    - name: Update apt cache if needed
+      apt: update_cache=yes cache_valid_time=3600
+
+  roles:
+    - geerlingguy.certbot
+    - geerlingguy.firewall
+
+  tasks:
+    - name: Set the hostname
+      hostname:
+        name: "{{ hostname }}"
+
+    - name: Install required packages
+      apt:
+        name:
+          - postfix
+          - dovecot-imapd
+        state: present
+
+    - name: Set hostname
+      lineinfile:
+        dest: "/etc/postfix/main.cf"
+        regexp: "{{ item.regexp }}"
+        line: "{{ item.value }}"
+        state: present
+      with_items:
+        - regexp: "^myhostname"
+          value: "myhostname = {{ hostname }}"
+        - regexp: "^mydestination"
+          value: "mydestination = {{ domain }}"
+        - regexp: "^disable_vrfy_command"
+          value: "disable_vrfy_command = yes"
+        - regexp: "^smtpd_tls_cert_file"
+          value: "smtpd_tls_cert_file = /etc/letsencrypt/live/{{ hostname }}/fullchain.pem"
+        - regexp: "^smtpd_tls_key_file"
+          value: "smtpd_tls_key_file = /etc/letsencrypt/live/{{ hostname }}/privkey.pem"
+      notify: restart postfix
+
+    - name: Enable Postfix smtp-auth
+      copy:
+        src: "99-local-auth.conf"
+        dest: "/etc/dovecot/conf.d/99-local-auth.conf"
+        owner: root
+        group: root
+        mode: 0644
+      notify: restart dovecot
+
+    - name: Configure certificate settings for dovecot
+      copy:
+        content: |
+          ssl_cert = </etc/letsencrypt/live/{{ hostname }}/fullchain.pem
+          ssl_key = </etc/letsencrypt/live/{{ hostname }}/privkey.pem
+        dest: /etc/dovecot/conf.d/99-local-ssl.conf
+      notify: restart dovecot
+
+    - name: Setup submission port
+      blockinfile:
+        state: present
+        insertafter: EOF
+        dest: /etc/postfix/master.cf
+        content: |
+          submission inet n       -       y       -       -       smtpd
+             -o syslog_name=postfix/submission
+             -o smtpd_tls_security_level=encrypt
+             -o smtpd_sasl_auth_enable=yes
+             -o smtpd_sasl_type=dovecot
+             -o smtpd_sasl_path=private/auth
+             -o smtpd_sasl_security_options=noanonymous
+             -o smtpd_tls_auth_only=yes
+             -o smtpd_reject_unlisted_recipient=no
+             -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+      notify: restart postfix
+
+  handlers:
+    - name: restart postfix
+      service: name=postfix state=restarted
+
+    - name: restart dovecot
+      service: name=dovecot state=restarted
