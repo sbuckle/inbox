@@ -80,6 +80,10 @@
           value: "smtpd_tls_cert_file = /etc/letsencrypt/live/{{ hostname }}/fullchain.pem"
         - regexp: "^smtpd_tls_key_file"
           value: "smtpd_tls_key_file = /etc/letsencrypt/live/{{ hostname }}/privkey.pem"
+        - regexp: "^smtpd_milters"
+          value: "smtpd_milters = inet:localhost:11332"
+        - regexp: "^milter_default_action"
+          value: "milter_default_action = accept"
       notify: restart postfix
 
     - name: Enable Postfix smtp-auth
