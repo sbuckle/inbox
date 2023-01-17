@@ -61,6 +61,8 @@
           - postfix
           - dovecot-imapd
           - rspamd
+          - opendkim
+          - opendkim-tools
         state: present
 
     - name: Set hostname
@@ -81,7 +83,7 @@
         - regexp: "^smtpd_tls_key_file"
           value: "smtpd_tls_key_file = /etc/letsencrypt/live/{{ hostname }}/privkey.pem"
         - regexp: "^smtpd_milters"
-          value: "smtpd_milters = inet:localhost:11332"
+          value: "smtpd_milters = inet:localhost:8891 inet:localhost:11332"
         - regexp: "^milter_default_action"
           value: "milter_default_action = accept"
       notify: restart postfix
@@ -121,9 +123,53 @@
              -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
       notify: restart postfix
 
+    - name: Create the directory (if it doesn't exist) for the DKIM signing keys
+      file:
+        state: directory
+        path: /etc/dkimkeys
+        owner: opendkim
+        group: opendkim
+        mode: '0700'
+
+    - name: Check to see if the signing key already exists
+      stat: "path=/etc/dkimkeys/{{ hostname }}.private"
+      register: p
+
+    - name: Generate the signing keys
+      command: "opendkim-genkey -D /etc/dkimkeys -s {{ hostname }}"
+      when: not p.stat.exists
+
+    - name: Change key permissions
+      file:
+        path: "/etc/dkimkeys/{{ hostname }}.private"
+        owner: opendkim
+        group: opendkim
+
+    - name: Modify DKIM configuration
+      blockinfile:
+        insertafter: EOF
+        dest: /etc/opendkim.conf
+        content: |
+          Mode                   sv
+          Domain                 {{ domain }}
+          Selector               {{ hostname }}
+          KeyFile                /etc/dkimkeys/{{ hostname }}.private
+      notify: restart opendkim
+
+    - name: Change DKIM socket setting
+      lineinfile:
+        dest: /etc/opendkim.conf
+        regexp: "^Socket"
+        line: "Socket                  inet:8891@localhost"
+        state: present
+      notify: restart opendkim
+
   handlers:
     - name: restart postfix
       service: name=postfix state=restarted
 
     - name: restart dovecot
       service: name=dovecot state=restarted
+
+    - name: restart opendkim
+      service: name=opendkim state=restarted
