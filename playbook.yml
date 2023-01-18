@@ -133,11 +133,11 @@
 
     - name: Check to see if the signing key already exists
       stat: "path=/etc/dkimkeys/{{ hostname }}.private"
-      register: p
+      register: signing_key_file
 
     - name: Generate the signing keys
       command: "opendkim-genkey -D /etc/dkimkeys -s {{ hostname }}"
-      when: not p.stat.exists
+      when: not signing_key_file.stat.exists
 
     - name: Change key permissions
       file:
