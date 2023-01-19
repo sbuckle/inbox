@@ -5,6 +5,7 @@
   vars:
     hostname: ""
     domain: "{{ hostname }}"
+    selector: "{{ hostname }}"
     admin_email: ""
     firewall_allowed_tcp_ports:
       - 22
@@ -132,16 +133,16 @@
         mode: '0700'
 
     - name: Check to see if the signing key already exists
-      stat: "path=/etc/dkimkeys/{{ hostname }}.private"
+      stat: "path=/etc/dkimkeys/{{ selector }}.private"
       register: signing_key_file
 
     - name: Generate the signing keys
-      command: "opendkim-genkey -D /etc/dkimkeys -s {{ hostname }}"
+      command: "opendkim-genkey -D /etc/dkimkeys -s {{ selector }}"
       when: not signing_key_file.stat.exists
 
     - name: Change key permissions
       file:
-        path: "/etc/dkimkeys/{{ hostname }}.private"
+        path: "/etc/dkimkeys/{{ selector }}.private"
         owner: opendkim
         group: opendkim
 
@@ -152,8 +153,8 @@
         content: |
           Mode                   sv
           Domain                 {{ domain }}
-          Selector               {{ hostname }}
-          KeyFile                /etc/dkimkeys/{{ hostname }}.private
+          Selector               {{ selector }}
+          KeyFile                /etc/dkimkeys/{{ selector }}.private
       notify: restart opendkim
 
     - name: Change DKIM socket setting
