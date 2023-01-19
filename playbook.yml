@@ -67,7 +67,15 @@
           - opendkim-tools
         state: present
 
-    - name: Set hostname
+    - name: Check to see if the DH parameters file exists
+      stat: "path=/etc/postfix/dh2048.pem"
+      register: dh_params_file
+
+    - name: Generate the DH parameters file
+      command: "openssl dhparam -out /etc/postfix/dh2048.pem 2048"
+      when: not dh_params_file.stat.exists
+
+    - name: Set Postfix default configuration
       lineinfile:
         dest: "/etc/postfix/main.cf"
         regexp: "{{ item.regexp }}"
@@ -88,6 +96,20 @@
           value: "smtpd_milters = inet:localhost:8891 inet:localhost:11332"
         - regexp: "^milter_default_action"
           value: "milter_default_action = accept"
+        - regexp: "^smtpd_tls_auth_only"
+          value: "smtpd_tls_auth_only = yes"
+        - regexp: "^smtpd_tls_mandatory_protocols"
+          value: "smtpd_tls_mandatory_protocols = !SSLv2, !SSLv3, !TLSv1, !TLSv1.1"
+        - regexp: "^smtpd_tls_protocols"
+          value: "smtpd_tls_protocols = !SSLv2, !SSLv3, !TLSv1, !TLSv1.1"
+        - regexp: "^smtpd_tls_mandatory_ciphers"
+          value: "smtpd_tls_mandatory_ciphers = medium"
+        - regexp: "^tls_preempt_cipherlist"
+          value: "tls_preempt_cipherlist = no"
+        - regexp: "^smtpd_tls_dh1024_param_file"
+          value: "smtpd_tls_dh1024_param_file = /etc/postfix/dh2048.pem"
+        - regexp: "^tls_medium_cipherlist"
+          value: "tls_medium_cipherlist = ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384"
       notify: restart postfix
 
     - name: Enable Postfix smtp-auth
