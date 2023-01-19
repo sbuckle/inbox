@@ -12,6 +12,7 @@
       - 25
       # Certbot standalone method
       - 80
+      - 465
       # Submission port
       - 587
       # IMAP over TLS
@@ -106,12 +107,21 @@
         dest: /etc/dovecot/conf.d/99-local-ssl.conf
       notify: restart dovecot
 
-    - name: Setup submission port
+    - name: Setup submission and smtps port
       blockinfile:
         state: present
         insertafter: EOF
         dest: /etc/postfix/master.cf
         content: |
+          smtps inet n       -       y       -       -       smtpd
+             -o syslog_name=postfix/smtps
+             -o smtpd_tls_wrappermode=yes
+             -o smtpd_sasl_auth_enable=yes
+             -o smtpd_sasl_type=dovecot
+             -o smtpd_sasl_path=private/auth
+             -o smtpd_sasl_security_options=noanonymous
+             -o smtpd_reject_unlisted_recipient=no
+             -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
           submission inet n       -       y       -       -       smtpd
              -o syslog_name=postfix/submission
              -o smtpd_tls_security_level=encrypt
