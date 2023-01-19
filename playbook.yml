@@ -91,7 +91,7 @@
 
     - name: Enable Postfix smtp-auth
       copy:
-        src: "99-local-auth.conf"
+        src: "files/dovecot/99-local-auth.conf"
         dest: "/etc/dovecot/conf.d/99-local-auth.conf"
         owner: root
         group: root
