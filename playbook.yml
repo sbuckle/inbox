@@ -65,6 +65,7 @@
           - rspamd
           - opendkim
           - opendkim-tools
+          - postfix-policyd-spf-python
         state: present
 
     - name: Check to see if the DH parameters file exists
@@ -110,6 +111,10 @@
           value: "smtpd_tls_dh1024_param_file = /etc/postfix/dh2048.pem"
         - regexp: "^tls_medium_cipherlist"
           value: "tls_medium_cipherlist = ECDHE-ECDSA-AES128-GCM-SHA256:ECDHE-RSA-AES128-GCM-SHA256:ECDHE-ECDSA-AES256-GCM-SHA384:ECDHE-RSA-AES256-GCM-SHA384:ECDHE-ECDSA-CHACHA20-POLY1305:ECDHE-RSA-CHACHA20-POLY1305:DHE-RSA-AES128-GCM-SHA256:DHE-RSA-AES256-GCM-SHA384"
+        - regexp: "^policy-spf_time_limit"
+          value: "policy-spf_time_limit = 3600"
+        - regexp: "^smtpd_recipient_restrictions"
+          value: "smtpd_recipient_restrictions = permit_mynetworks, permit_sasl_authenticated, reject_unauth_destination, check_policy_service unix:private/policy-spf"
       notify: restart postfix
 
     - name: Enable Postfix smtp-auth
@@ -154,6 +159,8 @@
              -o smtpd_tls_auth_only=yes
              -o smtpd_reject_unlisted_recipient=no
              -o smtpd_relay_restrictions=permit_sasl_authenticated,reject
+          policy-spf unix  -       n       n       -       -       spawn
+              user=nobody argv=/usr/bin/policyd-spf
       notify: restart postfix
 
     - name: Create the directory (if it doesn't exist) for the DKIM signing keys
