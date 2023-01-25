@@ -63,6 +63,7 @@
           - postfix
           - dovecot-imapd
           - dovecot-lmtpd
+          - dovecot-sieve
           - rspamd
           - opendkim
           - opendkim-tools
