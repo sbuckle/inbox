@@ -62,6 +62,7 @@
         name:
           - postfix
           - dovecot-imapd
+          - dovecot-lmtpd
           - rspamd
           - opendkim
           - opendkim-tools
