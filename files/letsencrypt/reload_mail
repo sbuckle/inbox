@@ -1,0 +1,5 @@
+#!/bin/bash
+
+# Reload for *all* domains
+systemctl reload dovecot
+systemctl reload postfix
