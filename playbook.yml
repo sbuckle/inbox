@@ -7,38 +7,17 @@
     domain: "{{ hostname }}"
     selector: "{{ hostname }}"
     admin_email: ""
-    use_letsencrypt: true
-    certbot_create_if_missing: true
-    certbot_create_method: standalone
-    certbot_auto_renew: true
-    certbot_admin_email: "{{ admin_email }}"
-    certbot_certs:
-      - domains:
-          - "{{ hostname }}"
+    smtpd_tls_cert_file: "/etc/ssl/certs/ssl-cert-snakeoil.pem"
+    smtpd_tls_key_file: "/etc/ssl/private/ssl-cert-snakeoil.key"
 
   pre_tasks:
     - name: Update apt cache if needed
       apt: update_cache=yes cache_valid_time=3600
 
-  roles:
-    - { role: geerlingguy.certbot, when: use_letsencrypt }
-
   tasks:
     - name: Set the hostname
       hostname:
         name: "{{ hostname }}"
-
-    - name: Ensure directory exists for local self-signed certificate
-      file:
-        path: /etc/ssl/certs/postfix
-        state: directory
-        mode: '0755'
-      when: not use_letsencrypt
-
-    - name: Generate self-signed certificate
-      command:
-        cmd: openssl req -x509 -newkey rsa:4096 -keyout /etc/ssl/certs/postfix/mail.key -out /etc/ssl/certs/postfix/mail.crt -days 365 -nodes -subj "/CN=localhost"
-      when: not use_letsencrypt
 
     - name: Get software for apt repository management
       apt:
@@ -81,9 +60,9 @@
         - regexp: "^disable_vrfy_command"
           value: "disable_vrfy_command = yes"
         - regexp: "^smtpd_tls_cert_file"
-          value: "smtpd_tls_cert_file = {{ '/etc/letsencrypt/live/{{ hostname }}/fullchain.pem' if use_letsencrypt else '/etc/ssl/certs/postfix/mail.crt' }}"
+          value: "smtpd_tls_cert_file = {{ smtpd_tls_cert_file }}"
         - regexp: "^smtpd_tls_key_file"
-          value: "smtpd_tls_key_file = {{ '/etc/letsencrypt/live/{{ hostname }}/privkey.pem' if use_letsencrypt else '/etc/ssl/certs/postfix/mail.key' }}"
+          value: "smtpd_tls_key_file = {{ smtpd_tls_key_file }}"
         - regexp: "^smtpd_milters"
           value: "smtpd_milters = inet:localhost:8891"
         - regexp: "^milter_default_action"
@@ -131,8 +110,8 @@
     - name: Configure certificate settings for dovecot
       copy:
         content: |
-          ssl_cert = <{{ '/etc/letsencrypt/live/{{ hostname }}/fullchain.pem' if use_letsencrypt else '/etc/ssl/certs/postfix/mail.crt' }}
-          ssl_key = <{{ '/etc/letsencrypt/live/{{ hostname }}/privkey.pem' if use_letsencrypt else '/etc/ssl/certs/postfix/mail.key' }}
+          ssl_cert = <{{ smtpd_tls_cert_file }}
+          ssl_key = <{{  smtpd_tls_key_file }}
         dest: /etc/dovecot/conf.d/99-local-ssl.conf
       notify: restart dovecot
 
@@ -205,15 +184,6 @@
         line: "Socket                  inet:8891@localhost"
         state: present
       notify: restart opendkim
-
-    - name: LetsEncrypt post renewal script
-      copy:
-        src: "files/letsencrypt/reload_mail"
-        dest: "/etc/letsencrypt/renewal-hooks/post/reload_mail"
-        owner: root
-        group: root
-        mode: 0750
-      when: use_letsencrypt
 
   handlers:
     - name: restart postfix
