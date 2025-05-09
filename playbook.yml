@@ -8,16 +8,6 @@
     selector: "{{ hostname }}"
     admin_email: ""
     use_letsencrypt: true
-    firewall_allowed_tcp_ports:
-      - 22
-      - 25
-      # Certbot standalone method
-      - 80
-      - 465
-      # Submission port
-      - 587
-      # IMAP over TLS
-      - 993
     certbot_create_if_missing: true
     certbot_create_method: standalone
     certbot_auto_renew: true
@@ -32,7 +22,6 @@
 
   roles:
     - { role: geerlingguy.certbot, when: use_letsencrypt }
-    - geerlingguy.firewall
 
   tasks:
     - name: Set the hostname
