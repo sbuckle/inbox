@@ -5,7 +5,7 @@
   vars:
     hostname: "localhost"
     domain: "{{ hostname }}"
-    selector: "{{ hostname }}"
+    selector: "default"
     admin_email: ""
     smtpd_tls_cert_file: "/etc/ssl/certs/ssl-cert-snakeoil.pem"
     smtpd_tls_key_file: "/etc/ssl/private/ssl-cert-snakeoil.key"
@@ -157,7 +157,7 @@
       register: signing_key_file
 
     - name: Generate the signing keys
-      command: "opendkim-genkey -D /etc/dkimkeys -s {{ selector }}"
+      command: "opendkim-genkey -D /etc/dkimkeys -b 2048 -s {{ selector }}"
       when: not signing_key_file.stat.exists
 
     - name: Change key permissions
