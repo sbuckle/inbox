@@ -89,23 +89,18 @@
           value: "mailbox_transport = lmtp:unix:private/dovecot-lmtp"
       notify: restart postfix
 
-    - name: Enable Postfix smtp-auth
+    - name: Override Dovecot settings
       copy:
-        src: "files/dovecot/99-local-auth.conf"
-        dest: "/etc/dovecot/conf.d/99-local-auth.conf"
+        src: "files/dovecot/{{ item }}"
+        dest: "/etc/dovecot/conf.d/{{ item }}"
         owner: root
         group: root
         mode: 0644
       notify: restart dovecot
-
-    - name: Enable Dovecot LMTP
-      copy:
-        src: "files/dovecot/99-local-lmtp.conf"
-        dest: "/etc/dovecot/conf.d/99-local-lmtp.conf"
-        owner: root
-        group: root
-        mode: 0644
-      notify: restart dovecot
+      with_items:
+        - 99-local-auth.conf
+        - 99-local-lmtp.conf
+        - 99-local-mail.conf
 
     - name: Configure certificate settings for dovecot
       copy:
