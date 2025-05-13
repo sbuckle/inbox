@@ -6,7 +6,6 @@
     hostname: "localhost"
     domain: "{{ hostname }}"
     selector: "default"
-    admin_email: ""
     smtpd_tls_cert_file: "/etc/ssl/certs/ssl-cert-snakeoil.pem"
     smtpd_tls_key_file: "/etc/ssl/private/ssl-cert-snakeoil.key"
 
